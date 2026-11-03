@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: transaction-webhook-service
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        sync: false   # set the Neon connection string in the Render dashboard
+      - key: PROCESSING_DELAY_SECONDS
+        value: "30"
+      - key: WORKER_CONCURRENCY
+        value: "50"
