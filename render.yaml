@@ -3,6 +3,9 @@ services:
     name: transaction-webhook-service
     runtime: docker
     plan: free
+    # Keep this in the same region as the database (Neon: AWS Asia Pacific, Singapore).
+    # A cross-region database adds ~500ms to every request.
+    region: singapore
     healthCheckPath: /
     envVars:
       - key: DATABASE_URL

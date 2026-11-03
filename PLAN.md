@@ -5,7 +5,6 @@ The assessment asks for a Python
 service that accepts payment-processor webhooks, acknowledges them in under 500ms with 202, processes
 each transaction in the background (30s simulated delay), stores results persistently, and guarantees
 idempotency on `transaction_id`. Deliverables: public GitHub repo with README + a live public URL.
-The folder is empty apart from the PDF — this is a greenfield build in `D:\New folder`.
 
 Graders will test: single transaction (~30s to PROCESSED), duplicate prevention, fast responses under
 load, and reliability (no lost transactions). Reliability is the deciding factor, so the design uses the
@@ -20,7 +19,7 @@ database as the source of truth for pending work instead of in-memory tasks.
 
 ## Project layout
 ```
-D:\New folder\
+webhook-service/
   app/
     __init__.py
     main.py        # FastAPI app, routes, lifespan (pool + worker startup/shutdown)

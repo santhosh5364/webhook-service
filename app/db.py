@@ -26,8 +26,7 @@ async def create_pool(min_size: int, max_size: int) -> asyncpg.Pool:
         min_size=min_size,
         max_size=max_size,
         command_timeout=10,
-        # Keeps pgbouncer-style poolers (e.g. Neon's pooled endpoint) happy.
-        statement_cache_size=0,
+        statement_cache_size=config.DB_STATEMENT_CACHE_SIZE,
     )
     async with pool.acquire() as conn:
         await conn.execute(SCHEMA)

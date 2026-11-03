@@ -16,3 +16,8 @@ if LEASE_SECONDS <= PROCESSING_DELAY_SECONDS:
 DB_POOL_MIN = int(os.environ.get("DB_POOL_MIN", "2"))
 DB_POOL_MAX = int(os.environ.get("DB_POOL_MAX", "10"))
 WORKER_DB_POOL_MAX = int(os.environ.get("WORKER_DB_POOL_MAX", "5"))
+
+# Cached prepared statements save a database round trip per query.
+# PgBouncer-style poolers (Neon's "-pooler" host) can't use them, so the cache is off there.
+_default_cache = "0" if "-pooler" in DATABASE_URL else "100"
+DB_STATEMENT_CACHE_SIZE = int(os.environ.get("DB_STATEMENT_CACHE_SIZE", _default_cache))

@@ -4,7 +4,11 @@ Receives transaction webhooks from payment processors, acknowledges them with **
 500ms**, and processes each transaction in the background (30s simulated external call) with
 **idempotency** and **no lost transactions**, even across crashes and redeploys.
 
-**Live API:** `https://<your-service>.onrender.com` &nbsp;·&nbsp; Interactive docs: `/docs`
+**Live API:** https://transaction-webhook-service-b7zx.onrender.com  
+**Interactive docs:** https://transaction-webhook-service-b7zx.onrender.com/docs
+
+> Hosted on Render's free plan. If the service has been idle it may take up to a minute to
+> wake up on the first request; after that, responses are fast.
 
 ## Endpoints
 
@@ -19,7 +23,7 @@ Invalid payloads return `422` with field-level errors.
 ## Try it
 
 ```bash
-BASE=https://<your-service>.onrender.com
+BASE=https://transaction-webhook-service-b7zx.onrender.com
 
 curl $BASE/
 
@@ -65,6 +69,24 @@ docker run -p 8000:8000 -e DATABASE_URL="postgresql://..." webhook-service
 | `WORKER_CONCURRENCY` | `50` | Transactions processed in parallel per instance |
 | `LEASE_SECONDS` | `60` | After this, an unfinished claimed job is retried (must exceed the delay) |
 | `POLL_INTERVAL_SECONDS` | `5` | How often the idle worker checks for recoverable jobs |
+| `DB_STATEMENT_CACHE_SIZE` | `100` (`0` for `-pooler` hosts) | Prepared-statement cache; saves a database round trip per query |
+
+## Deploy (Render + Neon, both free)
+
+1. **Database:** create a free project on [Neon](https://neon.tech) in **AWS Asia Pacific (Singapore)**.
+   Copy the connection string and remove `&channel_binding=require` from the end
+   (asyncpg doesn't support that parameter); keep `?sslmode=require`.
+2. **Service:** on [Render](https://render.com), choose **New → Blueprint** and select this repo.
+   `render.yaml` creates a free Docker web service in the **Singapore** region. Paste the Neon
+   string into `DATABASE_URL` when asked.
+3. **Keep it warm:** Render's free plan sleeps after 15 minutes without traffic. Point a free
+   uptime monitor (e.g. [UptimeRobot](https://uptimerobot.com)) at `GET /` every 5 minutes.
+
+**Keep the app and the database in the same region.** Every request makes a database round trip;
+across continents that adds ~500ms per request, which alone breaks the 500ms target. Render can't
+move an existing service to another region, so pick it when the service is created.
+
+The table is created automatically on first start; there is no migration step.
 
 ## Testing
 
@@ -81,12 +103,20 @@ errors, 404, and webhook latency.
 **End-to-end load test** against any running instance:
 
 ```bash
-python scripts/load_test.py https://<your-service>.onrender.com --distinct 100 --dupes 20
+python scripts/load_test.py https://transaction-webhook-service-b7zx.onrender.com --distinct 40 --dupes 20
 ```
 
-Fires 20 concurrent copies of one webhook plus 100 distinct webhooks, reports median/p99 latency,
+Fires 20 concurrent copies of one webhook plus N distinct webhooks, reports median/p99 latency,
 then waits until every transaction is `PROCESSED` and checks each has exactly one record.
-Local result: 120 webhooks, all 202, p99 ≈ 315ms, all processed exactly once.
+
+**Results**
+
+| Check | Result |
+|---|---|
+| pytest suite | 6/6 passed |
+| 20 concurrent duplicates + 40 distinct webhooks | all `202`; 41 transactions, each processed exactly once |
+| 60 simultaneous webhooks (local, measured with curl) | all `202`; median 13ms, max 34ms |
+| Single transaction on the live service | `PROCESSING` → `PROCESSED` 34s after receipt |
 
 **Crash recovery** (verified manually): send a webhook, kill the server during the 30s wait,
 restart it. The transaction resumes and reaches `PROCESSED`.
